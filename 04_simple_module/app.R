@@ -25,7 +25,7 @@ counterServer <- function(id) {
 }
 
 ui <- fluidPage(
-    h6("Do you love Spring?"),
+    h6("What is your favorite season?"),
     counterInput("spring")
     
 )
