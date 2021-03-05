@@ -1,0 +1,280 @@
+---
+title: "Intro to Shiny Modules"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css: xaringan-themer.css
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+library(showtext)
+```
+
+```{r xaringan-themer, include=FALSE, warning=FALSE}
+library(xaringanthemer)
+style_duo_accent(
+  primary_color = "#447099",
+  secondary_color = "#4D4D4D",
+  title_slide_text_color = "#FFFFFF",
+  title_slide_background_image = "https://rstudio.com/wp-content/uploads/2018/10/RStudio-Logo-White.png",
+  title_slide_background_position = "bottom 20px right 20px",
+  title_slide_background_size = "15%",
+  background_position = "bottom 20px right 20px",
+  inverse_background_color = "#A4C689",
+  background_size = "15%",
+  background_image = "https://rstudio.com/wp-content/uploads/2018/10/RStudio-Logo-Flat.png",
+  text_font_google = google_font("Source Sans Pro"),
+  base_font_size = "27px"
+)
+```
+---
+class: inverse, center, middle
+
+# Shiny Modules
+---
+## What are Shiny Modules
+
+A piece of a shiny app, that runs inside a shiny application and can represent input, output or both.
+
+---
+class: inverse, center, middle
+
+# 01_why_modules
+---
+
+## Why would you use modules?
+
+* Create smaller components of a shiny app that can easily be resused in the same app or in other applications
+
+* Break up complicated apps for easier reasoning & debugging
+
+---
+## How?
+
+A shiny modules has two parts:
+
+1) a UI function
+
+2) a piece of server logic using the UI 
+
+---
+class: inverse, center, middle
+
+## A simple module example  
+
+```{r eval=FALSE}
+counterUI <- function(){}
+counterServer <- function(){}
+```
+
+
+---
+
+## Shiny module: UI 
+Step 1: Return Shiny UI
+```{r eval=FALSE}
+counterUI <- function(label = "Counter") {
+
+  tagList(
+    actionButton("button", label = label),
+    verbatimTextOutput("out")
+  )
+}
+```
+---
+
+## Shiny module: UI 
+
+Step 2: Make a Namespace function
+```{r eval=FALSE}
+counterUI <- function(id, label = "Counter") {
+  ns <- NS(id)
+  tagList(
+    actionButton("button", label = label),
+    verbatimTextOutput("out")
+  )
+}
+```
+---
+## Shiny module: UI 
+Step 2: Wrap input and output id's in `ns()`
+```{r eval=FALSE}
+counterUI <- function(id, label = "Counter") {
+  ns <- NS(id)
+  tagList(
+    actionButton(ns("button"), label = label),
+    verbatimTextOutput(ns("out"))
+  )
+}
+```
+---
+
+## Shiny module: UI
+
+1. First argument is always `id` 
+
+2. Function body starts with `ns <- NS(id)` to create namespace function
+
+3. All inputs and outputs must be wrapped in `ns()` 
+
+4. Use `tagList` to return multiple UI objects 
+
+---
+
+## Shiny module: Server
+Step 1: Add server logic to module server function and be sure toinclude `session` in the server function 
+```{r eval=FALSE}
+counterServer <- function() {
+
+    function(input, output, session) {
+      count <- reactiveVal(0)
+      observeEvent(input$button, {
+        count(count() + 1)
+      })
+      output$out <- renderText({
+        count()
+      })
+    }
+}
+```
+---
+
+## Shiny module: Server
+Step 2: You don't need to wrap input / outputs in `ns()`
+```{r eval=FALSE}
+counterServer <- function(id) {
+
+    function(input, output, session) {
+      count <- reactiveVal(0)
+      observeEvent(input$button, {
+        count(count() + 1)
+      })
+      output$out <- renderText({
+        count()
+      })
+    }
+
+}
+```
+---
+
+## Shiny module: Server
+Step 3: Wrap Server logic function inside `moduleServer()`, pass it an id argument from the function
+```{r eval=FALSE}
+counterServer <- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      count <- reactiveVal(0)
+      observeEvent(input$button, {
+        count(count() + 1)
+      })
+      output$out <- renderText({
+        count()
+      })
+    }
+  )
+}
+```
+---
+
+
+## Shiny Module: Server 
+1. Similar name to corresponding UI function but with server suffix (e.g. `counterUI` and `counterServer`)
+
+2. `id` as input and any additional parameters needed 
+
+3. Calls `moduleServer()`
+
+4. `moduleServer` is passed `id` and a *module function*
+
+5. Module function has `input` `output` and `session` arguments and can access inputs and outputs only from its namespace
+---
+# Using shiny modules 
+```{r eval = FALSE}
+
+ui <- fluidPage(
+  counterButton("counter1")
+)
+
+server <- function(input, output, session) {
+  counterServer("counter1")
+}
+
+```
+
+---
+## Using shiny modules
+
+1. Call UI function with `id` (and any additional parameters) in ui of shiny app
+
+2. Call server module in the server function of app with matching `id`
+
+3. Repeat above with a unique `id` to reuse the module in the app 
+
+---
+
+## Serving shiny modules to your app 
+
+* *Inline Code:* write module code directly in the app
+
+* *In R Script:* that lives inside the app subdirectory
+
+* *In R Package:* especially if used across other apps 
+
+---
+class: inverse, center, middle
+
+# Examples
+---
+
+## Nested Modules: UI
+```{r eval=FALSE}
+
+innerUI <- function(id) {
+  ns <- NS(id)
+  "This is the inner UI"
+}
+
+outerUI <- function(id) {
+  ns <- NS(id)
+  wellPanel(
+    innerUI(ns("inner1"))
+  )
+}
+
+```
+---
+## Nested Modules: Server 
+
+```{r eval=FALSE}
+innerServer <- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+    }
+  )
+}
+outerServer <- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      innerResult <- innerServer("inner1")
+    }
+  )
+}
+
+```
+
+---
+
+# Shiny Module Resources
+
+* [Using Shiny Modules Tutorial](https://rstudio.com/resources/shiny-dev-con/modules/)
+* [Effective Use of Shiny Modules](https://rstudio.com/resources/rstudioconf-2019/effective-use-of-shiny-modules-in-application-development/)
+* [Modularizing Shiny app code](https://shiny.rstudio.com/articles/modules.html)

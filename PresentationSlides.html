@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Intro to Shiny Modules</title>
+    <meta charset="utf-8" />
+    <script src="libs/header-attrs/header-attrs.js"></script>
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Intro to Shiny Modules
+
+---
+
+
+
+
+
+---
+class: inverse, center, middle
+
+# Shiny Modules
+---
+## What are Shiny Modules
+
+A piece of a shiny app, that runs inside a shiny application and can represent input, output or both.
+
+---
+class: inverse, center, middle
+
+# 01_why_modules
+---
+
+## Why would you use modules?
+
+* Create smaller components of a shiny app that can easily be resused in the same app or in other applications
+
+* Break up complicated apps for easier reasoning &amp; debugging
+
+---
+## How?
+
+A shiny modules has two parts:
+
+1) a UI function
+
+2) a piece of server logic using the UI 
+
+---
+class: inverse, center, middle
+
+## A simple module example  
+
+
+```r
+counterUI &lt;- function(){}
+counterServer &lt;- function(){}
+```
+
+
+---
+
+## Shiny module: UI 
+Step 1: Return Shiny UI
+
+```r
+counterUI &lt;- function(label = "Counter") {
+
+  tagList(
+    actionButton("button", label = label),
+    verbatimTextOutput("out")
+  )
+}
+```
+---
+
+## Shiny module: UI 
+
+Step 2: Make a Namespace function
+
+```r
+counterUI &lt;- function(id, label = "Counter") {
+  ns &lt;- NS(id)
+  tagList(
+    actionButton("button", label = label),
+    verbatimTextOutput("out")
+  )
+}
+```
+---
+## Shiny module: UI 
+Step 2: Wrap input and output id's in `ns()`
+
+```r
+counterUI &lt;- function(id, label = "Counter") {
+  ns &lt;- NS(id)
+  tagList(
+    actionButton(ns("button"), label = label),
+    verbatimTextOutput(ns("out"))
+  )
+}
+```
+---
+
+## Shiny module: UI
+
+1. First argument is always `id` 
+
+2. Function body starts with `ns &lt;- NS(id)` to create namespace function
+
+3. All inputs and outputs must be wrapped in `ns()` 
+
+4. Use `tagList` to return multiple UI objects 
+
+---
+
+## Shiny module: Server
+Step 1: Add server logic to module server function and be sure toinclude `session` in the server function 
+
+```r
+counterServer &lt;- function() {
+
+    function(input, output, session) {
+      count &lt;- reactiveVal(0)
+      observeEvent(input$button, {
+        count(count() + 1)
+      })
+      output$out &lt;- renderText({
+        count()
+      })
+    }
+}
+```
+---
+
+## Shiny module: Server
+Step 2: You don't need to wrap input / outputs in `ns()`
+
+```r
+counterServer &lt;- function(id) {
+
+    function(input, output, session) {
+      count &lt;- reactiveVal(0)
+      observeEvent(input$button, {
+        count(count() + 1)
+      })
+      output$out &lt;- renderText({
+        count()
+      })
+    }
+
+}
+```
+---
+
+## Shiny module: Server
+Step 3: Wrap Server logic function inside `moduleServer()`, pass it an id argument from the function
+
+```r
+counterServer &lt;- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      count &lt;- reactiveVal(0)
+      observeEvent(input$button, {
+        count(count() + 1)
+      })
+      output$out &lt;- renderText({
+        count()
+      })
+    }
+  )
+}
+```
+---
+
+
+## Shiny Module: Server 
+1. Similar name to corresponding UI function but with server suffix (e.g. `counterUI` and `counterServer`)
+
+2. `id` as input and any additional parameters needed 
+
+3. Calls `moduleServer()`
+
+4. `moduleServer` is passed `id` and a *module function*
+
+5. Module function has `input` `output` and `session` arguments and can access inputs and outputs only from its namespace
+---
+# Using shiny modules 
+
+```r
+ui &lt;- fluidPage(
+  counterButton("counter1")
+)
+
+server &lt;- function(input, output, session) {
+  counterServer("counter1")
+}
+```
+
+---
+## Using shiny modules
+
+1. Call UI function with `id` (and any additional parameters) in ui of shiny app
+
+2. Call server module in the server function of app with matching `id`
+
+3. Repeat above with a unique `id` to reuse the module in the app 
+
+---
+
+## Serving shiny modules to your app 
+
+* *Inline Code:* write module code directly in the app
+
+* *In R Script:* that lives inside the app subdirectory
+
+* *In R Package:* especially if used across other apps 
+
+---
+class: inverse, center, middle
+
+# Examples
+---
+
+## Nested Modules: UI
+
+```r
+innerUI &lt;- function(id) {
+  ns &lt;- NS(id)
+  "This is the inner UI"
+}
+
+outerUI &lt;- function(id) {
+  ns &lt;- NS(id)
+  wellPanel(
+    innerUI(ns("inner1"))
+  )
+}
+```
+---
+## Nested Modules: Server 
+
+
+```r
+innerServer &lt;- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+    }
+  )
+}
+outerServer &lt;- function(id) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      innerResult &lt;- innerServer("inner1")
+    }
+  )
+}
+```
+
+---
+
+# Shiny Module Resources
+
+* [Using Shiny Modules Tutorial](https://rstudio.com/resources/shiny-dev-con/modules/)
+* [Effective Use of Shiny Modules](https://rstudio.com/resources/rstudioconf-2019/effective-use-of-shiny-modules-in-application-development/)
+* [Modularizing Shiny app code](https://shiny.rstudio.com/articles/modules.html)
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
